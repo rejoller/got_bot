@@ -14,7 +14,7 @@ import asyncio
 from mongo_gpt_connect import log_message_interaction
 
 import tiktoken
-encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+encoding = tiktoken.encoding_for_model("gpt-4o")
 
 
 main_router = Router()
@@ -129,8 +129,7 @@ async def handle_text(message: Message, state: FSMContext):
 
     # Получаем данные из состояния
     context_data = await state.get_data()
-    user_data = context_data.get(context_key, {
-                                 'assistant_id': None, 'last_tokens_used': 0, 'last_completion_tokens': 0, 'last_prompt_tokens': 0})
+    user_data = context_data.get(context_key, {'assistant_id': None})
 
     if 'assistant_id' not in user_data:
         assistant = await create_assistant(client)
