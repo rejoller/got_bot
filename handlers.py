@@ -1,18 +1,18 @@
-
+from aiogram.types import PreCheckoutQuery,  LabeledPrice
 from motor.motor_asyncio import AsyncIOMotorClient
 from icecream import ic
-from aiogram import types, Router, F
+from aiogram import types, Router, F, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command, CommandStart, StateFilter
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.types import Message
-from config import gpt_token
+from config import TOKEN_YOOKASSA, gpt_token
 from openai import AsyncOpenAI
 import logging
 import asyncio
 from mongo_gpt_connect import log_message_interaction
-
+from bot import bot
 import tiktoken
 encoding = tiktoken.encoding_for_model("gpt-4o")
 
@@ -86,6 +86,65 @@ class User:
         except Exception as e:
             print(f"Error setting new token balance: {e}")
             return 0
+    
+    async def increase_token_balance(self, amount):
+        try:
+            tokens_to_add = amount * 1000  # 1 рубль = 1000 токенов
+            result = await self.users_collection.update_one(
+                {'_id': self.user_id},
+                {'$inc': {'token_balance': tokens_to_add}}
+            )
+            print(f"Token balance increased by {tokens_to_add}: {result.modified_count}")
+            return result.modified_count
+        except Exception as e:
+            print(f"Error increasing token balance: {e}")
+            return 0
+
+
+@main_router.message(Command('pay'))
+async def handle_payment(message: types.Message):
+    print("handle_payment called")
+    try:
+        prices = [LabeledPrice(label='Пополнение баланса', amount=10000)]  # 100 рублей (в копейках)
+        await bot.send_invoice(
+            chat_id=message.chat.id,
+            title='Пополнить баланс',
+            description='Пополнение баланса',
+            payload='add_balance',
+            provider_token=TOKEN_YOOKASSA,
+            currency='rub',
+            prices=prices,
+            start_parameter='test',
+            need_email=True
+        )
+        print("Invoice sent")
+    except Exception as e:
+        print(f"Error in handle_payment: {e}")
+
+@main_router.pre_checkout_query(Message)
+async def process_pre_checkout_query(query: PreCheckoutQuery, bot: Bot, message: Message):
+    print("process_pre_checkout_query called")
+    try:
+        await bot.answer_pre_checkout_query(query.id, ok=True)
+        #await message.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+        print("Pre-checkout query answered")
+    except Exception as e:
+        print(f"Error in process_pre_checkout_query: {e}")
+
+@main_router.message(F.successful_payment)
+async def successful_payment(message: Message, bot: Bot):
+    print("successful_payment called")
+    try:
+        payment_info = message.successful_payment.to_python()
+        print(f"Payment info: {payment_info}")
+        amount = payment_info['total_amount'] / 100  # Сумма в рублях
+        user = User(message.from_user.id)
+        await user.increase_token_balance(amount)
+        await message.answer(f"Баланс успешно пополнен на {amount * 1000} токенов!")
+        print("Balance updated and message sent")
+    except Exception as e:
+        print(f"Error in successful_payment: {e}")
+
 
 
 @main_router.message(CommandStart())
