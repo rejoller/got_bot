@@ -7,7 +7,7 @@ from aiogram.filters import Command, CommandStart, StateFilter
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.types import Message
-from config import TOKEN_YOOKASSA, gpt_token
+from config import TOKEN_YOOKASSA, gpt_token, client_mongo
 from openai import AsyncOpenAI
 import logging
 import asyncio
@@ -28,7 +28,7 @@ class Form(StatesGroup):
 
 class User:
     def __init__(self, user_id):
-        self.client_mongo = AsyncIOMotorClient('mongodb://localhost:27017')
+        self.client_mongo = client_mongo
         self.db = self.client_mongo.gpt_users
         self.users_collection = self.db.users
         self.user_id = str(user_id)
@@ -102,22 +102,44 @@ class User:
             return 0
 
 
-@main_router.message(Command('pay'))
+@main_router.message(Command('pay_50k'))
 async def handle_payment(message: Message):
     print("handle_payment called")
     
     try:
-        prices = [LabeledPrice(label='Пополнение баланса', amount=10000)]  # 100 рублей (в копейках)
+        prices = [LabeledPrice(label='50 000 токенов', amount=15000)]  
         await message.bot.send_invoice(
             chat_id=message.from_user.id,
-            title='Пополнить баланс',
+            title='Покупка токенов',
             description='Пополнение баланса',
             payload='add_balance',
             provider_token=TOKEN_YOOKASSA,
             currency='rub',
             prices=prices,
             start_parameter='test',
-            need_email=True
+            need_email=False
+        )
+        print("Invoice sent")
+    except Exception as e:
+        print(f"Error in handle_payment: {e}")
+
+
+@main_router.message(Command('pay_110k'))
+async def handle_payment(message: Message):
+    print("handle_payment called")
+    
+    try:
+        prices = [LabeledPrice(label='110 000 токенов', amount=30000)]  
+        await message.bot.send_invoice(
+            chat_id=message.from_user.id,
+            title='Покупка токенов',
+            description='Пополнение баланса',
+            payload='add_balance',
+            provider_token=TOKEN_YOOKASSA,
+            currency='rub',
+            prices=prices,
+            start_parameter='test',
+            need_email=False
         )
         print("Invoice sent")
     except Exception as e:
@@ -144,7 +166,7 @@ async def successful_payment(message: Message, state: FSMContext):
         await user.create_user(initial_tokens=2000, role='user')
         await user.increase_token_balance(amount)
         new_balance = await user.get_token_balance()
-        await message.answer(f"Баланс успешно пополнен на {amount / 100} токенов!\nНа вашем счету {new_balance} токенов")  # Поправил расчет
+        await message.answer(f"Баланс успешно пополнен на {amount / 100} рублей!\nНа вашем счету {new_balance} токенов")  # Поправил расчет
         
         await state.set_state(Form.default)
         print("Balance updated and message sent")
@@ -157,15 +179,18 @@ async def successful_payment(message: Message, state: FSMContext):
 
 @main_router.message(CommandStart())
 async def handle_start(message: Message, state: FSMContext):
-    start_text = ('Привет, я бот, который подключен к API GPT-4, '
-                  'я могу ответить тебе на любой вопрос, используя всю мощь искусственного интеллекта')
+    user = User(message.from_user.id)
+    current_balance = await user.get_token_balance()
+    start_text = (f'Привет, я бот, который подключен использует технологии современной языковой модели'
+                  'искусственного интеллекта GPT-4o\n '
+                  'Сейчас на вашем счете {current_balance}')
     await message.answer(text=start_text)
 
 
 @main_router.message(Command('reset'))
 async def handle_start(message: Message, state: FSMContext):
     await state.clear()
-    await message.answer(text='состояние сброшено')
+    await message.answer(text='Сброс диалога выполнен')
 
 
 async def create_assistant(client):
