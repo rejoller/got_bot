@@ -1,4 +1,4 @@
-from aiogram.types import PreCheckoutQuery,  LabeledPrice
+from aiogram.types import PreCheckoutQuery,  LabeledPrice, successful_payment, SuccessfulPayment, CallbackQuery
 from motor.motor_asyncio import AsyncIOMotorClient
 from icecream import ic
 from aiogram import types, Router, F, Bot
@@ -22,17 +22,18 @@ client = AsyncOpenAI(api_key=gpt_token)
 
 
 class Form(StatesGroup):
+    pay = State()
     default = State()
 
 
 class User:
     def __init__(self, user_id):
-        self.client = AsyncIOMotorClient('mongodb://localhost:27017')
-        self.db = self.client.gpt_users
+        self.client_mongo = AsyncIOMotorClient('mongodb://localhost:27017')
+        self.db = self.client_mongo.gpt_users
         self.users_collection = self.db.users
         self.user_id = str(user_id)
 
-    async def create_user(self, initial_tokens=0, role='user'):
+    async def create_user(self, initial_tokens=2000, role='user'):
         user_doc = await self.users_collection.find_one({'_id': self.user_id})
         if not user_doc:
             result = await self.users_collection.insert_one({
@@ -102,12 +103,13 @@ class User:
 
 
 @main_router.message(Command('pay'))
-async def handle_payment(message: types.Message):
+async def handle_payment(message: Message):
     print("handle_payment called")
+    
     try:
         prices = [LabeledPrice(label='Пополнение баланса', amount=10000)]  # 100 рублей (в копейках)
-        await bot.send_invoice(
-            chat_id=message.chat.id,
+        await message.bot.send_invoice(
+            chat_id=message.from_user.id,
             title='Пополнить баланс',
             description='Пополнение баланса',
             payload='add_balance',
@@ -121,29 +123,35 @@ async def handle_payment(message: types.Message):
     except Exception as e:
         print(f"Error in handle_payment: {e}")
 
-@main_router.pre_checkout_query(Message)
-async def process_pre_checkout_query(query: PreCheckoutQuery, bot: Bot, message: Message):
+@main_router.pre_checkout_query()
+async def process_pre_checkout_query(pre_checkout_query: PreCheckoutQuery, bot: Bot, state: FSMContext):
     print("process_pre_checkout_query called")
-    try:
-        await bot.answer_pre_checkout_query(query.id, ok=True)
-        #await message.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
-        print("Pre-checkout query answered")
-    except Exception as e:
-        print(f"Error in process_pre_checkout_query: {e}")
+    await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+    await state.set_state(Form.pay)
+    current_state = await state.get_state()
+    print(f"Current state: {current_state}")
 
-@main_router.message(F.successful_payment)
-async def successful_payment(message: Message, bot: Bot):
+
+@main_router.message(F.successful_payment, StateFilter(Form.pay))
+async def successful_payment(message: Message, state: FSMContext):
     print("successful_payment called")
+    current_state = await state.get_state()
+    print(f"Current state at successful_payment: {current_state}")
     try:
-        payment_info = message.successful_payment.to_python()
-        print(f"Payment info: {payment_info}")
-        amount = payment_info['total_amount'] / 100  # Сумма в рублях
+        amount = message.successful_payment.total_amount
+        print(f"Payment info: {amount}")
         user = User(message.from_user.id)
+        await user.create_user(initial_tokens=2000, role='user')
         await user.increase_token_balance(amount)
-        await message.answer(f"Баланс успешно пополнен на {amount * 1000} токенов!")
+        new_balance = await user.get_token_balance()
+        await message.answer(f"Баланс успешно пополнен на {amount / 100} токенов!\nНа вашем счету {new_balance} токенов")  # Поправил расчет
+        
+        await state.set_state(Form.default)
         print("Balance updated and message sent")
     except Exception as e:
         print(f"Error in successful_payment: {e}")
+
+
 
 
 
@@ -175,8 +183,9 @@ async def create_assistant(client):
         return None
 
 
-@main_router.message(F.text)
+@main_router.message(F.text, ~StateFilter(Form.pay))
 async def handle_text(message: Message, state: FSMContext):
+    print('сработал handle_text')
     await state.set_state(Form.default)
     user_id = message.from_user.id
     first_name = message.from_user.first_name
