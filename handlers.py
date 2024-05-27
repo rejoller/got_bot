@@ -14,6 +14,7 @@ import asyncio
 from mongo_gpt_connect import log_message_interaction
 from bot import bot
 import tiktoken
+from config import mongodb_cient
 encoding = tiktoken.encoding_for_model("gpt-4o")
 
 
@@ -28,7 +29,7 @@ class Form(StatesGroup):
 
 class User:
     def __init__(self, user_id):
-        self.client_mongo = AsyncIOMotorClient('mongodb://localhost:27017')
+        self.client_mongo = mongodb_cient
         self.db = self.client_mongo.gpt_users
         self.users_collection = self.db.users
         self.user_id = str(user_id)
@@ -48,10 +49,11 @@ class User:
         try:
             user_doc = await self.users_collection.find_one({'_id': self.user_id})
             if user_doc:
-                print(f"User document found: {user_doc}")  # Отладочный вывод
-                return user_doc.get('token_balance', 0)
+                
+               
+                return user_doc['token_balance']
             else:
-                print("No user document found")  # Отладочный вывод
+                print("No user document found")  
                 return 0
         except Exception as e:
             print(f"Error fetching user token balance: {e}")
@@ -63,7 +65,8 @@ class User:
                 raise ValueError("tokens_used must be an integer or float")
             result = await self.users_collection.update_one(
                 {'_id': self.user_id},
-                {'$inc': {'token_balance': -tokens_used}}
+                {'$inc': {'token_balance': -tokens_used}},
+                upsert=True
             )
             # Отладочный вывод
             print(f"Tokens updated: {result.modified_count}")
@@ -93,7 +96,8 @@ class User:
             tokens_to_add = amount * 1000  # 1 рубль = 1000 токенов
             result = await self.users_collection.update_one(
                 {'_id': self.user_id},
-                {'$inc': {'token_balance': tokens_to_add}}
+                {'$inc': {'token_balance': tokens_to_add}},
+                upsert=True
             )
             print(f"Token balance increased by {tokens_to_add}: {result.modified_count}")
             return result.modified_count
@@ -102,7 +106,7 @@ class User:
             return 0
 
 
-@main_router.message(Command('pay'))
+@main_router.message(Command('pay_100'))
 async def handle_payment(message: Message):
     print("handle_payment called")
     
@@ -123,6 +127,45 @@ async def handle_payment(message: Message):
     except Exception as e:
         print(f"Error in handle_payment: {e}")
 
+
+
+
+
+
+
+
+@main_router.message(Command('pay_300'))
+async def handle_payment(message: Message):
+    print("handle_payment called")
+    total_amount=30000
+    try:
+        prices = [LabeledPrice(label='Пополнение баланса', amount= total_amount*0.9)]  # 100 рублей (в копейках)
+        await message.bot.send_invoice(
+            chat_id=message.from_user.id,
+            title='Пополнить баланс',
+            description='Пополнение баланса',
+            payload='add_balance',
+            provider_token=TOKEN_YOOKASSA,
+            currency='rub',
+            prices=prices,
+            start_parameter='test',
+            need_email=True
+        )
+        print("Invoice sent")
+    except Exception as e:
+        print(f"Error in handle_payment: {e}")
+
+
+
+
+
+
+
+
+
+
+
+
 @main_router.pre_checkout_query()
 async def process_pre_checkout_query(pre_checkout_query: PreCheckoutQuery, bot: Bot, state: FSMContext):
     print("process_pre_checkout_query called")
@@ -138,13 +181,14 @@ async def successful_payment(message: Message, state: FSMContext):
     current_state = await state.get_state()
     print(f"Current state at successful_payment: {current_state}")
     try:
-        amount = message.successful_payment.total_amount
+        amount = message.successful_payment.total_amount/100
         print(f"Payment info: {amount}")
         user = User(message.from_user.id)
-        await user.create_user(initial_tokens=2000, role='user')
+
         await user.increase_token_balance(amount)
         new_balance = await user.get_token_balance()
-        await message.answer(f"Баланс успешно пополнен на {amount / 100} токенов!\nНа вашем счету {new_balance} токенов")  # Поправил расчет
+        await message.answer(f"Баланс успешно пополнен на {amount * 1000} токенов!"
+                             f"\nНа вашем счету {new_balance} токенов") 
         
         await state.set_state(Form.default)
         print("Balance updated and message sent")
