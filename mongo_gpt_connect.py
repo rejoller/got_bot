@@ -2,7 +2,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from config import mongodb_cient
-from motor.motor_asyncio import AsyncIOMotorClient
+
 
 
 
