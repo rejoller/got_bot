@@ -168,9 +168,9 @@ async def successful_payment(message: Message, state: FSMContext):
     if 110 < invoice_sum_user <= 310:
         amount = invoice_sum_user*1.2
         ic(amount)
- 
 
- 
+
+
     print(f"Payment info: {amount}")
     user = User(message.from_user.id)
 
@@ -206,8 +206,8 @@ async def successful_payment(message: Message, state: FSMContext):
         await user.increase_token_balance(amount)
         new_balance = await user.get_token_balance()
         await message.answer(f"Баланс успешно пополнен на {amount * 50} токенов!"
-                             f"\nНа вашем счету {new_balance} токенов") 
-        
+                             f"\nНа вашем счету {new_balance} токенов")
+
         await state.set_state(Form.default)
         print("Balance updated and message sent")
     except Exception as e:
@@ -336,10 +336,10 @@ async def handle_text(message: Message, state: FSMContext):
 
             new_balance = await user.get_token_balance()
 
-            await message.answer(text=gpt_response, parse_mode='HTML')
+            await message.answer(text=gpt_response, parse_mode='Markdown')
             await log_message_interaction(user_id, username, first_name, user_input, gpt_response, user_input_tokens, assistant_response_tokens, total_tokens_used, new_balance)
         else:
             await message.answer(text="I currently don't work with this type of content 😔")
     else:
         await message.answer(text=f'ваш баланс {balance} токенов. Для продолжения пополните счет '
-                             f'с помощью команды /pay_100 или /pay_300', parse_mode='HTML')
+                             f'с помощью команды /pay_100 или /pay_300', parse_mode='Markdown')
