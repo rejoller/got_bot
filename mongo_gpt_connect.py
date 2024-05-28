@@ -1,20 +1,20 @@
 
 from datetime import datetime
 from zoneinfo import ZoneInfo
-
+from config import mongodb_cient
 from motor.motor_asyncio import AsyncIOMotorClient
 
-client = AsyncIOMotorClient('mongodb://localhost:27017')
 
 
-db = client.gpt_users
+
+db = mongodb_cient.gpt_users
 gpt_users_collection = db.users
 
 
 async def log_message_interaction(user_id, username, first_name, user_input, gpt_response, user_input_tokens, assistant_response_tokens, total_tokens_used, new_balance):
     message_time = datetime.now().astimezone(
         ZoneInfo("Asia/Krasnoyarsk")).strftime("%Y-%m-%d %H:%M:%S")
-    client = AsyncIOMotorClient('mongodb://localhost:27017')
+    client = mongodb_cient
 
     db = client.gpt_users
 
@@ -43,6 +43,7 @@ async def log_message_interaction(user_id, username, first_name, user_input, gpt
         # Добавление нового сообщения в массив существующего документа
         await messages_collection.update_one(
             {"_id": document['_id']},
-            {"$push": {"interactions": new_message}}
+            {"$push": {"interactions": new_message}},
+            upsert=True
         )
     print("Interaction logged successfully.")
