@@ -8,6 +8,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.types import Message
 from config import TOKEN_YOOKASSA, gpt_token
+import openai
 from openai import AsyncOpenAI
 import logging
 import asyncio
@@ -20,12 +21,21 @@ encoding = tiktoken.encoding_for_model("gpt-4o")
 
 
 main_router = Router()
+
+
+
 client = AsyncOpenAI(api_key=gpt_token)
 
 
 class Form(StatesGroup):
     pay = State()
     default = State()
+
+
+class Dalle(StatesGroup):
+
+    dalle= State()
+
 
 
 @main_router.message(Command('pay_100'))
@@ -49,6 +59,31 @@ async def handle_payment(message: Message):
         print("Invoice sent")
     except Exception as e:
         print(f"Error in handle_payment: {e}")
+
+
+
+
+@main_router.message(Command('dalle'))
+async def handle_switch_to_dalle(message: Message, state: FSMContext):
+    print("handle_switch_to_dalle called")
+    await state.set_state(Dalle.dalle)
+    await message.answer('вы переключены в генератор изображений')
+    ic(await state.get_state())
+
+
+@main_router.message(F.text, StateFilter(Dalle.dalle))
+async def handle_dalle_text(message: Message, state: FSMContext):
+    print('сработал handle_dalle_text')
+    openai.api_key = gpt_token
+    response = await openai.images.generate(
+        model="dall-e-3",
+        prompt=message.text,
+        n=1,
+        size="1024x1024"
+    )
+    image_url = response.data[0].url
+    await message.answer_photo(photo=image_url)
+
 
 
 @main_router.message(Command('pay_300'))
@@ -136,6 +171,9 @@ async def handle_start(message: Message, state: FSMContext):
     await message.answer(text='состояние сброшено')
 
 
+
+
+@main_router.message(~StateFilter(Dalle.dalle))
 @main_router.message(F.text, ~StateFilter(Form.pay))
 async def handle_text(message: Message, state: FSMContext):
     print('сработал handle_text')
@@ -151,14 +189,14 @@ async def handle_text(message: Message, state: FSMContext):
     # Получаем данные из состояния
     context_data = await state.get_data()
     user_data = context_data.get(context_key, {'assistant_id': None})
-
+    '''
     if 'assistant_id' not in user_data:
         assistant = await create_assistant(client)
         if assistant is None:
             await message.answer("Failed to create an assistant.")
             return
         user_data['assistant_id'] = assistant.id
-
+    '''
     if 'thread_id' not in user_data:
         thread = await client.beta.threads.create()
         if not thread:

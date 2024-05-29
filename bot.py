@@ -18,6 +18,8 @@ async def main():
     dp = Dispatcher(storage = storage)
     from handlers import main_router
     dp.include_router(main_router)
+   
+
     
    # await on_startup()
     print('Бот запущен и готов к приему сообщений')
