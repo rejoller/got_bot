@@ -101,7 +101,7 @@ async def handle_switch_to_dalle(message: Message, state: FSMContext):
 
 
 @main_router.message(Command('gpt'))
-async def handle_switch_to_dalle(message: Message, state: FSMContext):
+async def handle_switch_to_gpt(message: Message, state: FSMContext):
     print("handle_switch_to_dalle called")
     await state.set_state(Form.default)
     await message.answer('вы переключены в режим ChatGPT')
@@ -191,10 +191,12 @@ async def handle_dalle_text(message: Message, state: FSMContext):
             model="dall-e-3",
             prompt=message.text,
             n=1,
-            size="1792x1024",
+            size="1024x1024",
             quality= "hd"
         )
+        ic(response)
         image_url = response.data[0].url
+        ic(image_url)
         await message.answer_photo(photo=image_url)
         await user.update_token_balance(tokens_used=500)
     else:
@@ -297,7 +299,7 @@ async def handle_text(message: Message, state: FSMContext):
 
 
 @main_router.message(StateFilter(Form.default))
-@main_router.message(Command('reset'))
-async def handle_start(message: Message, state: FSMContext):
+@main_router.message(Command('new_dialog'))
+async def handle_start_new_dialog(message: Message, state: FSMContext):
     await state.clear()
     await message.answer(text='Начат новый диалог')
