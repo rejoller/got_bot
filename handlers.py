@@ -183,6 +183,9 @@ async def handle_balance(message: Message, state: FSMContext):
 async def handle_dalle_text(message: Message, state: FSMContext):
     print('сработал handle_dalle_text')
     user = User(message.from_user.id)
+    user_id = message.from_user.id
+    first_name = message.from_user.first_name
+    username = message.from_user.username
     openai.api_key = gpt_token
     balance = await user.get_token_balance()
     if balance > 0:
@@ -194,11 +197,14 @@ async def handle_dalle_text(message: Message, state: FSMContext):
             size="1024x1024",
             quality= "hd"
         )
-        ic(response)
+        
         image_url = response.data[0].url
-        ic(image_url)
+        
         await message.answer_photo(photo=image_url)
         await user.update_token_balance(tokens_used=500)
+        await log_message_interaction(user_id, username, first_name, user_input=message.text,
+                                      gpt_response=image_url, user_input_tokens=0, assistant_response_tokens=500,
+                                      total_tokens_used=500, new_balance=balance+500)
     else:
         await message.answer(f'Ваш баланс {int(balance)} токенов, пополните его чтобы сгенерировать изображение')
 
