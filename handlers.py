@@ -62,30 +62,6 @@ async def handle_payment(message: Message):
 
 
 
-
-@main_router.message(Command('dalle'))
-async def handle_switch_to_dalle(message: Message, state: FSMContext):
-    print("handle_switch_to_dalle called")
-    await state.set_state(Dalle.dalle)
-    await message.answer('вы переключены в генератор изображений')
-    ic(await state.get_state())
-
-
-@main_router.message(F.text, StateFilter(Dalle.dalle))
-async def handle_dalle_text(message: Message, state: FSMContext):
-    print('сработал handle_dalle_text')
-    openai.api_key = gpt_token
-    response = await openai.images.generate(
-        model="dall-e-3",
-        prompt=message.text,
-        n=1,
-        size="1024x1024"
-    )
-    image_url = response.data[0].url
-    await message.answer_photo(photo=image_url)
-
-
-
 @main_router.message(Command('pay_300'))
 async def handle_payment(message: Message):
     print("handle_payment called")
@@ -110,10 +86,53 @@ async def handle_payment(message: Message):
         print(f"Error in handle_payment: {e}")
 
 
+
+
+
+@main_router.message(Command('dalle'))
+async def handle_switch_to_dalle(message: Message, state: FSMContext):
+    print("handle_switch_to_dalle called")
+    await state.set_state(Dalle.dalle)
+    await message.answer('вы переключены в генератор изображений. Стоимость одной генерации 500 токенов!')
+    ic(await state.get_state())
+
+
+
+
+
+@main_router.message(Command('gpt'))
+async def handle_switch_to_dalle(message: Message, state: FSMContext):
+    print("handle_switch_to_dalle called")
+    await state.set_state(Form.default)
+    await message.answer('вы переключены в режим ChatGPT')
+    ic(await state.get_state())
+
+
+
+
+
+
+
+
+
+
+
+
+@main_router.message(CommandStart())
+async def handle_start(message: Message, state: FSMContext):
+    user = User(message.from_user.id)
+    await user.create_user(initial_tokens=4000, role='user')
+    balance = await user.get_token_balance()
+    start_text = (f'Привет, я бот, который подключен к API GPT-4o, '
+                  f'я могу ответить тебе на любой вопрос, используя всю мощь искусственного интеллекта'
+                  f'твой баланс {balance} токенов')
+
+    await message.answer(text=start_text)
+
 @main_router.message(F.successful_payment, StateFilter(Form.pay))
 async def successful_payment(message: Message, state: FSMContext):
     print("successful_payment called")
-    current_state = await state.get_state()
+
     amount = 0
     invoice_sum_user = message.successful_payment.total_amount/100
 
@@ -146,29 +165,40 @@ async def process_pre_checkout_query(pre_checkout_query: PreCheckoutQuery, bot: 
     print(f"Current state: {current_state}")
 
 
-@main_router.message(CommandStart())
-async def handle_start(message: Message, state: FSMContext):
-    user = User(message.from_user.id)
-    await user.create_user(initial_tokens=4000, role='user')
-    balance = await user.get_token_balance()
-    start_text = (f'Привет, я бот, который подключен к API GPT-4o, '
-                  f'я могу ответить тебе на любой вопрос, используя всю мощь искусственного интеллекта'
-                  f'твой баланс {balance} токенов')
 
-    await message.answer(text=start_text)
 
 
 @main_router.message(Command('balance'))
 async def handle_balance(message: Message, state: FSMContext):
     user = User(message.from_user.id)
     balance = await user.get_token_balance()
-    await message.answer(text=f'Ваш баланс {balance} токенов')
+    await message.answer(text=f'Ваш баланс {int(balance)} токенов')
 
 
-@main_router.message(Command('reset'))
-async def handle_start(message: Message, state: FSMContext):
-    await state.clear()
-    await message.answer(text='состояние сброшено')
+
+
+
+@main_router.message(~StateFilter(Form.default))
+@main_router.message(F.text, StateFilter(Dalle.dalle))
+async def handle_dalle_text(message: Message, state: FSMContext):
+    print('сработал handle_dalle_text')
+    user = User(message.from_user.id)
+    openai.api_key = gpt_token
+    balance = await user.get_token_balance()
+    if balance > 0:
+        print(f"Current token balance: {balance}")
+        response = openai.images.generate(
+            model="dall-e-3",
+            prompt=message.text,
+            n=1,
+            size="1792x1024",
+            quality= "hd"
+        )
+        image_url = response.data[0].url
+        await message.answer_photo(photo=image_url)
+        await user.update_token_balance(tokens_used=500)
+    else:
+        await message.answer(f'Ваш баланс {int(balance)} токенов, пополните его чтобы сгенерировать изображение')
 
 
 
@@ -260,5 +290,14 @@ async def handle_text(message: Message, state: FSMContext):
         else:
             await message.answer(text="I currently don't work with this type of content 😔")
     else:
-        await message.answer(text=f'ваш баланс {balance} токенов. Для продолжения пополните счет '
+        await message.answer(text=f'ваш баланс {int(balance)} токенов. Для продолжения пополните счет '
                              f'с помощью команды /pay_100 или /pay_300', parse_mode='Markdown')
+
+
+
+
+@main_router.message(StateFilter(Form.default))
+@main_router.message(Command('reset'))
+async def handle_start(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer(text='Начат новый диалог')

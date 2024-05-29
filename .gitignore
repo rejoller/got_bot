@@ -3,3 +3,4 @@ config.py
 *.pyc
 
 pythonanywhere.py
+__pycache__/handlers.cpython-311.pyc
