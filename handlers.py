@@ -295,7 +295,7 @@ async def handle_text(message: Message, state: FSMContext):
             new_balance = await user.get_token_balance()
             messages = await split_message(gpt_response)
             messages_before_reset += 1
-            user.update_msg_count(msg_count=messages_before_reset)
+            await user.update_msg_count(msg_count=messages_before_reset)
             for msg in messages:
                 await message.answer(text=msg, parse_mode='Markdown')
             await log_message_interaction(user_id, username, first_name, user_input, gpt_response, user_input_tokens, assistant_response_tokens, total_tokens_used, new_balance)
