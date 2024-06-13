@@ -231,11 +231,11 @@ async def handle_text(message: Message, state: FSMContext):
     messages_before_reset = await user.get_msg_count()
     ic(messages_before_reset)
 
-    if messages_before_reset > 5:
-        user_data['thread_id'] = 0
+    #if messages_before_reset > 5:
+     #   user_data['thread_id'] = 0
 
     # Проверка и создание нового thread, если не существует
-    if user_data.get('thread_id') is None:
+    if user_data.get('thread_id') is None or messages_before_reset > 5:
         thread = await client.beta.threads.create()
         if not thread:
             await message.answer("Failed to create a thread.")
