@@ -110,7 +110,9 @@ async def handle_payment(message: Message):
 @main_router.message(StateFilter(Form.default), Command('new_dialog'))
 #@main_router.message(Command('new_dialog'))
 async def handle_start_new_dialog(message: Message, state: FSMContext):
+    user = User(message.from_user.id)
     await state.clear()
+    await user.update_msg_count(msg_count=0)
     await message.answer(text='Начат новый диалог')
 
 
@@ -231,11 +233,9 @@ async def handle_text(message: Message, state: FSMContext):
     messages_before_reset = await user.get_msg_count()
     ic(messages_before_reset)
 
-    #if messages_before_reset > 5:
-     #   user_data['thread_id'] = 0
-
-    # Проверка и создание нового thread, если не существует
-    if user_data.get('thread_id') is None or messages_before_reset > 5:
+    if user_data.get('thread_id') is None or messages_before_reset > 10:
+        user_data['thread_id'] = None
+        messages_before_reset = 0
         thread = await client.beta.threads.create()
         if not thread:
             await message.answer("Failed to create a thread.")
