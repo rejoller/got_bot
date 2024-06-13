@@ -16,6 +16,7 @@ from mongo_gpt_connect import log_message_interaction
 from bot import bot
 import tiktoken
 from config import mongodb_cient
+from additional import split_message
 from user_class import User
 encoding = tiktoken.encoding_for_model("gpt-4o")
 
@@ -197,9 +198,9 @@ async def handle_dalle_text(message: Message, state: FSMContext):
             size="1024x1024",
             quality= "hd"
         )
-        
+
         image_url = response.data[0].url
-        
+
         await message.answer_photo(photo=image_url)
         await user.update_token_balance(tokens_used=500)
         await log_message_interaction(user_id, username, first_name, user_input=message.text,
@@ -226,21 +227,19 @@ async def handle_text(message: Message, state: FSMContext):
 
     # Получаем данные из состояния
     context_data = await state.get_data()
-    user_data = context_data.get(context_key, {'assistant_id': None})
-    '''
-    if 'assistant_id' not in user_data:
-        assistant = await create_assistant(client)
-        if assistant is None:
-            await message.answer("Failed to create an assistant.")
-            return
-        user_data['assistant_id'] = assistant.id
-    '''
-    if 'thread_id' not in user_data:
+    user_data = context_data.get(context_key, {'assistant_id': None, 'message_count': 0})
+
+
+    if 'message_count' not in user_data:
+        user_data['message_count'] = 0
+
+    if 'thread_id' not in user_data or user_data['message_count'] >= 2:
         thread = await client.beta.threads.create()
         if not thread:
             await message.answer("Failed to create a thread.")
             return
         user_data['thread_id'] = thread.id
+        user_data['message_count'] = 0
 
     context_data[context_key] = user_data
     await state.set_data(context_data)
@@ -253,7 +252,7 @@ async def handle_text(message: Message, state: FSMContext):
 
     run = await client.beta.threads.runs.create(
         thread_id=user_data['thread_id'],
-        assistant_id='asst_20LTOBd7QB8MOV09lzC1eD5X'
+        assistant_id='asst_JkGlpC7kgPN6L9K4LJAIfVrw'
     )
 
     balance = await user.get_token_balance()
@@ -292,8 +291,10 @@ async def handle_text(message: Message, state: FSMContext):
             await user.update_token_balance(tokens_used=int(total_tokens_used))
 
             new_balance = await user.get_token_balance()
-
-            await message.answer(text=gpt_response, parse_mode='Markdown')
+            messages = await split_message(gpt_response)
+            for msg in messages:
+                await message.answer(text=msg, parse_mode='Markdown')
+            user_data['message_count'] += 1
             await log_message_interaction(user_id, username, first_name, user_input, gpt_response, user_input_tokens, assistant_response_tokens, total_tokens_used, new_balance)
         else:
             await message.answer(text="I currently don't work with this type of content 😔")
