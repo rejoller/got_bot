@@ -39,6 +39,23 @@ class Dalle(StatesGroup):
 
 
 
+@main_router.message(Command('dalle'))
+async def handle_switch_to_dalle(message: Message, state: FSMContext):
+    print("handle_switch_to_dalle called")
+    await state.set_state(Dalle.dalle)
+    await message.answer('вы переключены в генератор изображений. Стоимость одной генерации 500 токенов!')
+    ic(await state.get_state())
+
+
+
+
+@main_router.message(Command('gpt'))
+async def handle_switch_to_gpt(message: Message, state: FSMContext):
+    print("handle_switch_to_dalle called")
+    await state.set_state(Form.default)
+    await message.answer('вы переключены в режим ChatGPT')
+    ic(await state.get_state())
+
 @main_router.message(Command('pay_100'))
 async def handle_payment(message: Message):
     print("handle_payment called")
@@ -90,30 +107,11 @@ async def handle_payment(message: Message):
 
 
 
-@main_router.message(Command('dalle'))
-async def handle_switch_to_dalle(message: Message, state: FSMContext):
-    print("handle_switch_to_dalle called")
-    await state.set_state(Dalle.dalle)
-    await message.answer('вы переключены в генератор изображений. Стоимость одной генерации 500 токенов!')
-    ic(await state.get_state())
-
-
-
-
-
-@main_router.message(Command('gpt'))
-async def handle_switch_to_gpt(message: Message, state: FSMContext):
-    print("handle_switch_to_dalle called")
-    await state.set_state(Form.default)
-    await message.answer('вы переключены в режим ChatGPT')
-    ic(await state.get_state())
-
-
-
-
-
-
-
+@main_router.message(StateFilter(Form.default), Command('new_dialog'))
+#@main_router.message(Command('new_dialog'))
+async def handle_start_new_dialog(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer(text='Начат новый диалог')
 
 
 
@@ -123,12 +121,14 @@ async def handle_switch_to_gpt(message: Message, state: FSMContext):
 async def handle_start(message: Message, state: FSMContext):
     user = User(message.from_user.id)
     await user.create_user(initial_tokens=4000, role='user')
+
     balance = await user.get_token_balance()
     start_text = (f'Привет, я бот, который подключен к API GPT-4o, '
                   f'я могу ответить тебе на любой вопрос, используя всю мощь искусственного интеллекта'
                   f'твой баланс {balance} токенов')
 
     await message.answer(text=start_text)
+    await state.clear()
 
 @main_router.message(F.successful_payment, StateFilter(Form.pay))
 async def successful_payment(message: Message, state: FSMContext):
@@ -179,8 +179,8 @@ async def handle_balance(message: Message, state: FSMContext):
 
 
 
-@main_router.message(~StateFilter(Form.default))
-@main_router.message(F.text, StateFilter(Dalle.dalle))
+@main_router.message(~StateFilter(Form.default), StateFilter(Dalle.dalle))
+#@main_router.message(F.text, StateFilter(Dalle.dalle))
 async def handle_dalle_text(message: Message, state: FSMContext):
     print('сработал handle_dalle_text')
     user = User(message.from_user.id)
@@ -212,8 +212,7 @@ async def handle_dalle_text(message: Message, state: FSMContext):
 
 
 
-@main_router.message(~StateFilter(Dalle.dalle))
-@main_router.message(F.text, ~StateFilter(Form.pay))
+@main_router.message(~StateFilter(Dalle.dalle), F.text, ~StateFilter(Form.pay))
 async def handle_text(message: Message, state: FSMContext):
     print('сработал handle_text')
     await state.set_state(Form.default)
@@ -227,21 +226,24 @@ async def handle_text(message: Message, state: FSMContext):
 
     # Получаем данные из состояния
     context_data = await state.get_data()
-    user_data = context_data.get(context_key, {'assistant_id': None, 'message_count': 0})
+    user_data = context_data.get(context_key, {'assistant_id': None, 'thread_id': None})
 
+    messages_before_reset = await user.get_msg_count()
+    ic(messages_before_reset)
 
-    if 'message_count' not in user_data:
-        user_data['message_count'] = 0
+    if messages_before_reset > 5:
+        user_data['thread_id'] = 0
 
-    if 'thread_id' not in user_data or user_data['message_count'] >= 2:
+    # Проверка и создание нового thread, если не существует
+    if user_data.get('thread_id') is None:
         thread = await client.beta.threads.create()
         if not thread:
             await message.answer("Failed to create a thread.")
             return
         user_data['thread_id'] = thread.id
-        user_data['message_count'] = 0
 
     context_data[context_key] = user_data
+    ic(context_data[context_key])
     await state.set_data(context_data)
 
     await client.beta.threads.messages.create(
@@ -252,7 +254,7 @@ async def handle_text(message: Message, state: FSMContext):
 
     run = await client.beta.threads.runs.create(
         thread_id=user_data['thread_id'],
-        assistant_id='asst_JkGlpC7kgPN6L9K4LJAIfVrw'
+        assistant_id='asst_20LTOBd7QB8MOV09lzC1eD5X'
     )
 
     balance = await user.get_token_balance()
@@ -292,21 +294,13 @@ async def handle_text(message: Message, state: FSMContext):
 
             new_balance = await user.get_token_balance()
             messages = await split_message(gpt_response)
+            messages_before_reset += 1
+            user.update_msg_count(msg_count=messages_before_reset)
             for msg in messages:
                 await message.answer(text=msg, parse_mode='Markdown')
-            user_data['message_count'] += 1
             await log_message_interaction(user_id, username, first_name, user_input, gpt_response, user_input_tokens, assistant_response_tokens, total_tokens_used, new_balance)
         else:
             await message.answer(text="I currently don't work with this type of content 😔")
     else:
         await message.answer(text=f'ваш баланс {int(balance)} токенов. Для продолжения пополните счет '
                              f'с помощью команды /pay_100 или /pay_300', parse_mode='Markdown')
-
-
-
-
-@main_router.message(StateFilter(Form.default))
-@main_router.message(Command('new_dialog'))
-async def handle_start_new_dialog(message: Message, state: FSMContext):
-    await state.clear()
-    await message.answer(text='Начат новый диалог')

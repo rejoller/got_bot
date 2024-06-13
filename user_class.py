@@ -80,3 +80,34 @@ class User:
         except Exception as e:
             print(f"Error increasing token balance: {e}")
             return 0
+        
+
+    async def get_msg_count(self):
+        try:
+            user_doc = await self.users_collection.find_one({'_id': self.user_id})
+            if user_doc:
+
+                return user_doc.get('msg_before_reset', 0)
+            else:
+                print("No user document found")
+                return 0
+        except Exception as e:
+            print(f"Error msg_before_reset: {e}")
+            return None
+        
+        
+    async def update_msg_count(self, msg_count):
+        try:
+            if not isinstance(msg_count, (int, float)):  # Проверка типа
+                raise ValueError("tokens_used must be an integer or float")
+            result = await self.users_collection.update_one(
+                {'_id': self.user_id},
+                {'$inc': {'msg_before_reset': msg_count}},
+                upsert=True
+            )
+            # Отладочный вывод
+            print(f"msg_before_reset updated: {result.modified_count}")
+            return result.modified_count
+        except Exception as e:
+            print(f"Error updating msg_before_reset: {e}")
+            return 0
