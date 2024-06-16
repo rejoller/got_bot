@@ -3,7 +3,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from icecream import ic
 from aiogram import types, Router, F, Bot
 from aiogram.fsm.context import FSMContext
-from aiogram.filters import Command, CommandStart, StateFilter
+from aiogram.filters import Command, CommandStart, StateFilter, CommandObject
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.types import Message
@@ -56,52 +56,35 @@ async def handle_switch_to_gpt(message: Message, state: FSMContext):
     await message.answer('вы переключены в режим ChatGPT')
     ic(await state.get_state())
 
+
+
+@main_router.message(Command('pay_1'))
+@main_router.message(Command('pay_10'))
+@main_router.message(Command('pay_50'))
 @main_router.message(Command('pay_100'))
-async def handle_payment(message: Message):
+@main_router.message(Command('pay_500'))
+async def handle_payment(message: Message, command=CommandObject):
     print("handle_payment called")
-
+    amount = int(command.command.split("_")[1])
+    ic(amount)
     try:
         # 100 рублей (в копейках)
-        prices = [LabeledPrice(label='Пополнение баланса', amount=10000)]
-        await message.bot.send_invoice(
-            chat_id=message.from_user.id,
-            title='Пополнить баланс',
-            description='Пополнение баланса на 50 000 токенов',
-            payload='add_balance',
-            provider_token=TOKEN_YOOKASSA,
-            currency='rub',
+        prices = [LabeledPrice(label="XTR", amount=amount)]
+        invoice_description = f"Покупка {amount*1000} токенов за {amount} stars"
+        await message.answer_invoice(
+            title=f"Покупка {amount} stars",
+            description=invoice_description,
+            payload="100_stars",
+            provider_token="",  # Должен быть корректный токен платежного провайдера
+            currency="XTR",  # Обратите внимание, что "XTR" не является допустимым кодом валюты. Возможно, вам нужен "RUB" для рублей?
             prices=prices,
-            start_parameter='test',
-            need_email=True
+            start_parameter="start_parameter_here"  # Параметр, который может понадобиться
         )
-        print("Invoice sent")
     except Exception as e:
         print(f"Error in handle_payment: {e}")
 
 
 
-@main_router.message(Command('pay_300'))
-async def handle_payment(message: Message):
-    print("handle_payment called")
-    total_amount = 30000
-    try:
-        # 100 рублей (в копейках)
-        prices = [LabeledPrice(
-            label='Пополнение баланса', amount=total_amount)]
-        await message.bot.send_invoice(
-            chat_id=message.from_user.id,
-            title='Пополнить баланс',
-            description='Пополнение баланса на 180 000 токенов',
-            payload='add_balance',
-            provider_token=TOKEN_YOOKASSA,
-            currency='rub',
-            prices=prices,
-            start_parameter='test',
-            need_email=True
-        )
-        print("Invoice sent")
-    except Exception as e:
-        print(f"Error in handle_payment: {e}")
 
 
 
@@ -137,7 +120,7 @@ async def successful_payment(message: Message, state: FSMContext):
     print("successful_payment called")
 
     amount = 0
-    invoice_sum_user = message.successful_payment.total_amount/100
+    invoice_sum_user = message.successful_payment.total_amount
 
     if invoice_sum_user <= 110:
         amount = invoice_sum_user
@@ -147,12 +130,12 @@ async def successful_payment(message: Message, state: FSMContext):
         amount = invoice_sum_user*1.2
         ic(amount)
 
-    print(f"Payment info: {amount}")
+    
     user = User(message.from_user.id)
 
     await user.increase_token_balance(amount)
     new_balance = await user.get_token_balance()
-    await message.answer(f"Баланс успешно пополнен на {amount * 500} токенов!"
+    await message.answer(f"Баланс успешно пополнен на {amount * 1000} токенов!"
                          f"\nНа вашем счету {new_balance} токенов")
 
     await state.set_state(Form.default)

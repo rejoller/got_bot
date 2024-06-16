@@ -68,7 +68,7 @@ class User:
 
     async def increase_token_balance(self, amount):
         try:
-            tokens_to_add = amount * 500
+            tokens_to_add = amount * 1000
             result = await self.users_collection.update_one(
                 {'_id': self.user_id},
                 {'$inc': {'token_balance': tokens_to_add}},
