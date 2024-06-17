@@ -24,7 +24,6 @@ encoding = tiktoken.encoding_for_model("gpt-4o")
 main_router = Router()
 
 
-
 client = AsyncOpenAI(api_key=gpt_token)
 
 
@@ -35,8 +34,7 @@ class Form(StatesGroup):
 
 class Dalle(StatesGroup):
 
-    dalle= State()
-
+    dalle = State()
 
 
 @main_router.message(Command('dalle'))
@@ -47,15 +45,12 @@ async def handle_switch_to_dalle(message: Message, state: FSMContext):
     ic(await state.get_state())
 
 
-
-
 @main_router.message(Command('gpt'))
 async def handle_switch_to_gpt(message: Message, state: FSMContext):
     print("handle_switch_to_dalle called")
     await state.set_state(Form.default)
     await message.answer('вы переключены в режим ChatGPT')
     ic(await state.get_state())
-
 
 
 @main_router.message(Command('pay_1'))
@@ -66,40 +61,30 @@ async def handle_switch_to_gpt(message: Message, state: FSMContext):
 async def handle_payment(message: Message, command=CommandObject):
     print("handle_payment called")
     amount = int(command.command.split("_")[1])
-    ic(amount)
+    
     try:
-        # 100 рублей (в копейках)
+        
         prices = [LabeledPrice(label="XTR", amount=amount)]
         invoice_description = f"Покупка {amount*1000} токенов за {amount} stars"
         await message.answer_invoice(
             title=f"Покупка {amount} stars",
             description=invoice_description,
             payload="100_stars",
-            provider_token="",  # Должен быть корректный токен платежного провайдера
-            currency="XTR",  # Обратите внимание, что "XTR" не является допустимым кодом валюты. Возможно, вам нужен "RUB" для рублей?
+            provider_token="",  
+            currency="XTR", 
             prices=prices,
-            start_parameter="start_parameter_here"  # Параметр, который может понадобиться
+            start_parameter="start_parameter_here"  
         )
     except Exception as e:
         print(f"Error in handle_payment: {e}")
 
 
-
-
-
-
-
-
 @main_router.message(StateFilter(Form.default), Command('new_dialog'))
-#@main_router.message(Command('new_dialog'))
 async def handle_start_new_dialog(message: Message, state: FSMContext):
     user = User(message.from_user.id)
     await state.clear()
     await user.update_msg_count(msg_count=0)
     await message.answer(text='Начат новый диалог')
-
-
-
 
 
 @main_router.message(CommandStart())
@@ -114,6 +99,7 @@ async def handle_start(message: Message, state: FSMContext):
 
     await message.answer(text=start_text)
     await state.clear()
+
 
 @main_router.message(F.successful_payment, StateFilter(Form.pay))
 async def successful_payment(message: Message, state: FSMContext):
@@ -130,7 +116,6 @@ async def successful_payment(message: Message, state: FSMContext):
         amount = invoice_sum_user*1.2
         ic(amount)
 
-    
     user = User(message.from_user.id)
 
     await user.increase_token_balance(amount)
@@ -151,9 +136,6 @@ async def process_pre_checkout_query(pre_checkout_query: PreCheckoutQuery, bot: 
     print(f"Current state: {current_state}")
 
 
-
-
-
 @main_router.message(Command('balance'))
 async def handle_balance(message: Message, state: FSMContext):
     user = User(message.from_user.id)
@@ -161,14 +143,13 @@ async def handle_balance(message: Message, state: FSMContext):
     await message.answer(text=f'Ваш баланс {int(balance)} токенов')
 
 
-
-
-
 @main_router.message(~StateFilter(Form.default), StateFilter(Dalle.dalle))
-#@main_router.message(F.text, StateFilter(Dalle.dalle))
+# @main_router.message(F.text, StateFilter(Dalle.dalle))
 async def handle_dalle_text(message: Message, state: FSMContext):
     print('сработал handle_dalle_text')
     user = User(message.from_user.id)
+    
+    
     user_id = message.from_user.id
     first_name = message.from_user.first_name
     username = message.from_user.username
@@ -181,7 +162,7 @@ async def handle_dalle_text(message: Message, state: FSMContext):
             prompt=message.text,
             n=1,
             size="1024x1024",
-            quality= "hd"
+            quality="hd"
         )
 
         image_url = response.data[0].url
@@ -195,8 +176,6 @@ async def handle_dalle_text(message: Message, state: FSMContext):
         await message.answer(f'Ваш баланс {int(balance)} токенов, пополните его чтобы сгенерировать изображение')
 
 
-
-
 @main_router.message(~StateFilter(Dalle.dalle), F.text, ~StateFilter(Form.pay))
 async def handle_text(message: Message, state: FSMContext):
     print('сработал handle_text')
@@ -206,12 +185,14 @@ async def handle_text(message: Message, state: FSMContext):
     username = message.from_user.username
 
     user = User(message.from_user.id)
+    
     context_key = f"user_{user_id}"
     await user.create_user(initial_tokens=2000, role='user')
 
     # Получаем данные из состояния
     context_data = await state.get_data()
-    user_data = context_data.get(context_key, {'assistant_id': None, 'thread_id': None})
+    user_data = context_data.get(
+        context_key, {'assistant_id': None, 'thread_id': None})
 
     messages_before_reset = await user.get_msg_count()
     ic(messages_before_reset)
@@ -244,6 +225,7 @@ async def handle_text(message: Message, state: FSMContext):
     print(f"Current token balance: {balance}")
 
     if balance > 0:
+        await bot.send_chat_action(action='typin')
         while True:
             run_response = await client.beta.threads.runs.retrieve(
                 thread_id=user_data['thread_id'],
@@ -254,7 +236,7 @@ async def handle_text(message: Message, state: FSMContext):
                 context_data[context_key] = user_data
                 await state.set_data(context_data)
                 break
-            await asyncio.sleep(0.3)
+            await asyncio.sleep(0.2)
 
         messages_response = await client.beta.threads.messages.list(thread_id=user_data['thread_id'])
         gpt_response = None

@@ -23,7 +23,7 @@ async def main():
     
    # await on_startup()
     print('Бот запущен и готов к приему сообщений')
-    ic()
+    
 
   
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
