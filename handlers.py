@@ -61,19 +61,19 @@ async def handle_switch_to_gpt(message: Message, state: FSMContext):
 async def handle_payment(message: Message, command=CommandObject):
     print("handle_payment called")
     amount = int(command.command.split("_")[1])
-    
+
     try:
-        
+
         prices = [LabeledPrice(label="XTR", amount=amount)]
         invoice_description = f"Покупка {amount*1000} токенов за {amount} stars"
         await message.answer_invoice(
             title=f"Покупка {amount} stars",
             description=invoice_description,
             payload="100_stars",
-            provider_token="",  
-            currency="XTR", 
+            provider_token="",
+            currency="XTR",
             prices=prices,
-            start_parameter="start_parameter_here"  
+            start_parameter="start_parameter_here"
         )
     except Exception as e:
         print(f"Error in handle_payment: {e}")
@@ -93,9 +93,27 @@ async def handle_start(message: Message, state: FSMContext):
     await user.create_user(initial_tokens=4000, role='user')
 
     balance = await user.get_token_balance()
-    start_text = (f'Привет, я бот, который подключен к API GPT-4o, '
-                  f'я могу ответить тебе на любой вопрос, используя всю мощь искусственного интеллекта'
-                  f'твой баланс {balance} токенов')
+    start_text = (
+        f"Добро пожаловать! / Welcome!\n\n"
+        f"Этот бот предоставляет доступ к двум мощным AI инструментам. Chat-GPT4 позволяет вам общаться "
+        f"с передовой моделью обработки естественного языка, а Dalle-3 генерирует уникальные изображения по "
+        f"вашим текстовым запросам. Вся валюта в боте представлена в формате telegram stars.\n\n"
+        f"This bot provides access to two powerful AI tools. Chat-GPT4 lets you converse with an advanced "
+        f"language model, while Dalle-3 generates unique images from your text prompts. All currency in the "
+        f"bot is represented in telegram stars.\n\n"
+        f"Команды:\n"
+        f"Commands:\n\n"
+        f"/new_dialog - Новый диалог / Start a new dialog\n"
+        f"/gpt - Режим ChatGPT / Switch to ChatGPT mode\n"
+        f"/dalle - Режим генерации изображений Dalle-3 / Dalle-3 image generation mode\n"
+        f"/pay_1 - Купить 1 000 токенов / Top up the account with 1,000 tokens\n"
+        f"/pay_10 - Купить 10 000 токенов / Top up the account with 10,000 tokens\n"
+        f"/pay_50 - Купить 50 000 токенов / Top up the account with 50,000 tokens\n"
+        f"/pay_100 - Купить 100 000 токенов / Top up the account with 100,000 tokens\n"
+        f"/pay_500 - Купить 500 000 токенов / Top up the account with 500,000 tokens\n"
+        f"/balance - Текущий баланс / Check the current balance\n\n"
+        f"Ваш текущий баланс - {balance} токенов / Your current balance - {balance} tokens\n\n"
+    )
 
     await message.answer(text=start_text)
     await state.clear()
@@ -148,14 +166,15 @@ async def handle_balance(message: Message, state: FSMContext):
 async def handle_dalle_text(message: Message, state: FSMContext):
     print('сработал handle_dalle_text')
     user = User(message.from_user.id)
-    
-    
+
+
     user_id = message.from_user.id
     first_name = message.from_user.first_name
     username = message.from_user.username
     openai.api_key = gpt_token
     balance = await user.get_token_balance()
     if balance > 0:
+        await bot.send_chat_action(action='upload_photo', chat_id = user_id)
         print(f"Current token balance: {balance}")
         response = openai.images.generate(
             model="dall-e-3",
@@ -185,7 +204,7 @@ async def handle_text(message: Message, state: FSMContext):
     username = message.from_user.username
 
     user = User(message.from_user.id)
-    
+
     context_key = f"user_{user_id}"
     await user.create_user(initial_tokens=2000, role='user')
 
@@ -225,7 +244,7 @@ async def handle_text(message: Message, state: FSMContext):
     print(f"Current token balance: {balance}")
 
     if balance > 0:
-        await bot.send_chat_action(action='typin')
+        await bot.send_chat_action(action='typing', chat_id = user_id)
         while True:
             run_response = await client.beta.threads.runs.retrieve(
                 thread_id=user_data['thread_id'],
