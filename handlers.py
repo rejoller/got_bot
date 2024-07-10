@@ -19,7 +19,7 @@ from config import mongodb_cient
 from additional import split_message
 from user_class import User
 encoding = tiktoken.encoding_for_model("gpt-4o")
-
+from aiogram import flags
 
 main_router = Router()
 
@@ -164,10 +164,7 @@ async def handle_balance(message: Message, state: FSMContext):
 @main_router.message(~StateFilter(Form.default), StateFilter(Dalle.dalle), flags={"long_operation": "upload_photo"})
 # @main_router.message(F.text, StateFilter(Dalle.dalle))
 async def handle_dalle_text(message: Message, state: FSMContext):
-    print('сработал handle_dalle_text')
     user = User(message.from_user.id)
-
-
     user_id = message.from_user.id
     first_name = message.from_user.first_name
     username = message.from_user.username
@@ -175,7 +172,6 @@ async def handle_dalle_text(message: Message, state: FSMContext):
     balance = await user.get_token_balance()
     if balance > 0:
         #await bot.send_chat_action(action='upload_photo', chat_id = user_id)
-        print(f"Current token balance: {balance}")
         response = openai.images.generate(
             model="dall-e-3",
             prompt=message.text,
@@ -197,7 +193,6 @@ async def handle_dalle_text(message: Message, state: FSMContext):
 
 @main_router.message(~StateFilter(Dalle.dalle), F.text, ~StateFilter(Form.pay), flags={"long_operation": "typing"})
 async def handle_text(message: Message, state: FSMContext):
-    print('сработал handle_text')
     await state.set_state(Form.default)
     user_id = message.from_user.id
     first_name = message.from_user.first_name
@@ -214,7 +209,7 @@ async def handle_text(message: Message, state: FSMContext):
         context_key, {'assistant_id': None, 'thread_id': None})
 
     messages_before_reset = await user.get_msg_count()
-    ic(messages_before_reset)
+
 
     if user_data.get('thread_id') is None or messages_before_reset > 10:
         user_data['thread_id'] = None
@@ -226,7 +221,7 @@ async def handle_text(message: Message, state: FSMContext):
         user_data['thread_id'] = thread.id
 
     context_data[context_key] = user_data
-    ic(context_data[context_key])
+
     await state.set_data(context_data)
 
     await client.beta.threads.messages.create(
@@ -244,7 +239,7 @@ async def handle_text(message: Message, state: FSMContext):
     print(f"Current token balance: {balance}")
 
     if balance > 0:
-       # await bot.send_chat_action(action='typing', chat_id = user_id)
+        #await bot.send_chat_action(action='typing', chat_id = user_id)
         while True:
             run_response = await client.beta.threads.runs.retrieve(
                 thread_id=user_data['thread_id'],
