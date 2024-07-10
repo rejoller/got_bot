@@ -44,7 +44,7 @@ class User:
                 upsert=True
             )
             # Отладочный вывод
-            print(f"Tokens updated: {result.modified_count}")
+            
             return result.modified_count
         except Exception as e:
             print(f"Error updating token balance: {e}")
@@ -60,7 +60,7 @@ class User:
                 upsert=True
             )
             # Отладочный вывод
-            print(f"Token balance set: {result.modified_count}")
+            
             return result.modified_count
         except Exception as e:
             print(f"Error setting new token balance: {e}")
@@ -87,13 +87,12 @@ class User:
             user_doc = await self.users_collection.find_one({'_id': self.user_id})
             if user_doc:
                 msg_count = user_doc.get('msg_before_reset', 0)
-                print(f"User document found: {user_doc}, msg_before_reset: {msg_count}")
                 return msg_count
             else:
-                print("No user document found")
+                
                 return 0
         except Exception as e:
-            print(f"Error msg_before_reset: {e}")
+            
             return None
 
     async def update_msg_count(self, msg_count):
@@ -106,8 +105,8 @@ class User:
                 upsert=True
             )
             # Отладочный вывод
-            print(f"msg_before_reset updated: {result.modified_count}")
+            
             return result.modified_count
         except Exception as e:
-            print(f"Error updating msg_before_reset: {e}")
+            
             return 0

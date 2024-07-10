@@ -8,7 +8,6 @@ import logging
 from icecream import ic
 
 storage = RedisStorage.from_url(redis_url)
-#storage = BaseStorage
 bot = Bot(bot_token)
 
 

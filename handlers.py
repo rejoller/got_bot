@@ -39,18 +39,16 @@ class Dalle(StatesGroup):
 
 @main_router.message(Command('dalle'))
 async def handle_switch_to_dalle(message: Message, state: FSMContext):
-    print("handle_switch_to_dalle called")
     await state.set_state(Dalle.dalle)
     await message.answer('вы переключены в генератор изображений. Стоимость одной генерации 500 токенов!')
-    ic(await state.get_state())
+    
 
 
 @main_router.message(Command('gpt'))
 async def handle_switch_to_gpt(message: Message, state: FSMContext):
-    print("handle_switch_to_dalle called")
     await state.set_state(Form.default)
     await message.answer('вы переключены в режим ChatGPT')
-    ic(await state.get_state())
+    
 
 
 @main_router.message(Command('pay_1'))
@@ -59,7 +57,7 @@ async def handle_switch_to_gpt(message: Message, state: FSMContext):
 @main_router.message(Command('pay_100'))
 @main_router.message(Command('pay_500'))
 async def handle_payment(message: Message, command=CommandObject):
-    print("handle_payment called")
+    
     amount = int(command.command.split("_")[1])
 
     try:
@@ -121,18 +119,16 @@ async def handle_start(message: Message, state: FSMContext):
 
 @main_router.message(F.successful_payment, StateFilter(Form.pay))
 async def successful_payment(message: Message, state: FSMContext):
-    print("successful_payment called")
-
     amount = 0
     invoice_sum_user = message.successful_payment.total_amount
 
     if invoice_sum_user <= 110:
         amount = invoice_sum_user
-        ic(amount)
+       
 
     if 110 < invoice_sum_user <= 310:
         amount = invoice_sum_user*1.2
-        ic(amount)
+        
 
     user = User(message.from_user.id)
 
@@ -142,17 +138,14 @@ async def successful_payment(message: Message, state: FSMContext):
                          f"\nНа вашем счету {new_balance} токенов")
 
     await state.set_state(Form.default)
-    print("Balance updated and message sent")
+   
 
 
 @main_router.pre_checkout_query()
 async def process_pre_checkout_query(pre_checkout_query: PreCheckoutQuery, bot: Bot, state: FSMContext):
-    print("process_pre_checkout_query called")
     await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
     await state.set_state(Form.pay)
     current_state = await state.get_state()
-    print(f"Current state: {current_state}")
-
 
 @main_router.message(Command('balance'))
 async def handle_balance(message: Message, state: FSMContext):
@@ -163,7 +156,6 @@ async def handle_balance(message: Message, state: FSMContext):
 
 @main_router.message(StateFilter(Dalle.dalle), flags={"long_operation": "upload_photo"})
 async def handle_dalle_text(message: Message, state: FSMContext):
-    ic(flags)
     user = User(message.from_user.id)
     user_id = message.from_user.id
     first_name = message.from_user.first_name
@@ -171,8 +163,6 @@ async def handle_dalle_text(message: Message, state: FSMContext):
     openai.api_key = gpt_token
     balance = await user.get_token_balance()
     if balance > 0:
-        #await bot.send_chat_action(action='upload_photo', chat_id = user_id)
-        print(f"Current token balance: {balance}")
         response = openai.images.generate(
             model="dall-e-3",
             prompt=message.text,
@@ -194,7 +184,6 @@ async def handle_dalle_text(message: Message, state: FSMContext):
 
 @main_router.message(~StateFilter(Dalle.dalle), F.text, ~StateFilter(Form.pay), flags={"long_operation": "typing"})
 async def handle_text(message: Message, state: FSMContext):
-    ic(flags)
     await state.set_state(Form.default)
     user_id = message.from_user.id
     first_name = message.from_user.first_name
@@ -267,7 +256,7 @@ async def handle_text(message: Message, state: FSMContext):
 
             total_tokens_used = user_input_tokens + assistant_response_tokens
 
-            print(f'total_tokens_used: {total_tokens_used}')
+            
             await user.update_token_balance(tokens_used=int(total_tokens_used))
 
             new_balance = await user.get_token_balance()
