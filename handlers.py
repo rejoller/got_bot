@@ -41,14 +41,14 @@ class Dalle(StatesGroup):
 async def handle_switch_to_dalle(message: Message, state: FSMContext):
     await state.set_state(Dalle.dalle)
     await message.answer('вы переключены в генератор изображений. Стоимость одной генерации 500 токенов!')
-    
+
 
 
 @main_router.message(Command('gpt'))
 async def handle_switch_to_gpt(message: Message, state: FSMContext):
     await state.set_state(Form.default)
     await message.answer('вы переключены в режим ChatGPT')
-    
+
 
 
 @main_router.message(Command('pay_1'))
@@ -57,7 +57,7 @@ async def handle_switch_to_gpt(message: Message, state: FSMContext):
 @main_router.message(Command('pay_100'))
 @main_router.message(Command('pay_500'))
 async def handle_payment(message: Message, command=CommandObject):
-    
+
     amount = int(command.command.split("_")[1])
 
     try:
@@ -124,11 +124,11 @@ async def successful_payment(message: Message, state: FSMContext):
 
     if invoice_sum_user <= 110:
         amount = invoice_sum_user
-       
+
 
     if 110 < invoice_sum_user <= 310:
         amount = invoice_sum_user*1.2
-        
+
 
     user = User(message.from_user.id)
 
@@ -138,7 +138,7 @@ async def successful_payment(message: Message, state: FSMContext):
                          f"\nНа вашем счету {new_balance} токенов")
 
     await state.set_state(Form.default)
-   
+
 
 
 @main_router.pre_checkout_query()
@@ -163,7 +163,8 @@ async def handle_dalle_text(message: Message, state: FSMContext):
     openai.api_key = gpt_token
     balance = await user.get_token_balance()
     if balance > 0:
-        response = openai.images.generate(
+        response = await asyncio.to_thread(
+            openai.images.generate,
             model="dall-e-3",
             prompt=message.text,
             n=1,
@@ -256,7 +257,7 @@ async def handle_text(message: Message, state: FSMContext):
 
             total_tokens_used = user_input_tokens + assistant_response_tokens
 
-            
+
             await user.update_token_balance(tokens_used=int(total_tokens_used))
 
             new_balance = await user.get_token_balance()
