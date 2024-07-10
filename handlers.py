@@ -1,7 +1,7 @@
 from aiogram.types import PreCheckoutQuery,  LabeledPrice, successful_payment, SuccessfulPayment, CallbackQuery
 from motor.motor_asyncio import AsyncIOMotorClient
 from icecream import ic
-from aiogram import types, Router, F, Bot
+from aiogram import types, Router, F, Bot, flags
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command, CommandStart, StateFilter, CommandObject
 from aiogram.fsm.state import State, StatesGroup
@@ -161,13 +161,10 @@ async def handle_balance(message: Message, state: FSMContext):
     await message.answer(text=f'Ваш баланс {int(balance)} токенов')
 
 
-@main_router.message(~StateFilter(Form.default), StateFilter(Dalle.dalle), flags={"long_operation": "upload_photo"})
-# @main_router.message(F.text, StateFilter(Dalle.dalle))
+@main_router.message(StateFilter(Dalle.dalle), flags={"long_operation": "upload_photo"})
 async def handle_dalle_text(message: Message, state: FSMContext):
-    print('сработал handle_dalle_text')
+    ic(flags)
     user = User(message.from_user.id)
-
-
     user_id = message.from_user.id
     first_name = message.from_user.first_name
     username = message.from_user.username
@@ -197,7 +194,7 @@ async def handle_dalle_text(message: Message, state: FSMContext):
 
 @main_router.message(~StateFilter(Dalle.dalle), F.text, ~StateFilter(Form.pay), flags={"long_operation": "typing"})
 async def handle_text(message: Message, state: FSMContext):
-    print('сработал handle_text')
+    ic(flags)
     await state.set_state(Form.default)
     user_id = message.from_user.id
     first_name = message.from_user.first_name
