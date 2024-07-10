@@ -13,13 +13,15 @@ class ChatActionMiddleware(BaseMiddleware):
         data: Dict[str, Any]
     ) -> Any:
         long_operation_type = get_flag(data, "long_operation")
+        bot = data.get('bot')  # Получаем объект бота из данных
 
         if not long_operation_type:
             return await handler(event, data)
 
         # Если флаг есть
         async with ChatActionSender(
-                action=long_operation_type, 
-                chat_id=event.chat.id
+                action=long_operation_type,
+                chat_id=event.chat.id,
+                bot=bot  # Передаем объект бота
         ):
             return await handler(event, data)

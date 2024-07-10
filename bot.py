@@ -16,10 +16,9 @@ bot = Bot(bot_token)
 
 async def main():
 
-    dp = Dispatcher(storage = storage)
+    dp = Dispatcher(storage=storage)
     from handlers import main_router
     dp.include_router(main_router)
-
 
     # Подключение middleware перед start_polling
     dp.update.middleware(ChatActionMiddleware())

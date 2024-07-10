@@ -1,7 +1,7 @@
 from aiogram.types import PreCheckoutQuery,  LabeledPrice, successful_payment, SuccessfulPayment, CallbackQuery
 from motor.motor_asyncio import AsyncIOMotorClient
 from icecream import ic
-from aiogram import types, Router, F, Bot
+from aiogram import types, Router, F, Bot, flags
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command, CommandStart, StateFilter, CommandObject
 from aiogram.fsm.state import State, StatesGroup
