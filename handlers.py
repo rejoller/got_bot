@@ -214,7 +214,6 @@ async def handle_text(message: Message, state: FSMContext):
         context_key, {'assistant_id': None, 'thread_id': None})
 
     messages_before_reset = await user.get_msg_count()
-    ic(messages_before_reset)
 
     if user_data.get('thread_id') is None or messages_before_reset > 10:
         user_data['thread_id'] = None
@@ -226,7 +225,6 @@ async def handle_text(message: Message, state: FSMContext):
         user_data['thread_id'] = thread.id
 
     context_data[context_key] = user_data
-    ic(context_data[context_key])
     await state.set_data(context_data)
 
     await client.beta.threads.messages.create(
@@ -241,7 +239,6 @@ async def handle_text(message: Message, state: FSMContext):
     )
 
     balance = await user.get_token_balance()
-    print(f"Current token balance: {balance}")
 
     if balance > 0:
        # await bot.send_chat_action(action='typing', chat_id = user_id)
@@ -286,5 +283,11 @@ async def handle_text(message: Message, state: FSMContext):
         else:
             await message.answer(text="I currently don't work with this type of content 😔")
     else:
-        await message.answer(text=f'ваш баланс {int(balance)} токенов. Для продолжения пополните счет '
-                             f'с помощью команды /pay_100 или /pay_300', parse_mode='Markdown')
+        text=(f"ваш баланс {int(balance)} токенов. Для продолжения пополните счет\n\n"                             
+                f"/pay_1 - Купить 1 000 токенов / Top up the account with 1,000 tokens\n"
+                f"/pay_10 - Купить 10 000 токенов / Top up the account with 10,000 tokens\n"
+                f"/pay_50 - Купить 50 000 токенов / Top up the account with 50,000 tokens\n"
+                f"/pay_100 - Купить 100 000 токенов / Top up the account with 100,000 tokens\n"
+                f"/pay_500 - Купить 500 000 токенов / Top up the account with 500,000 tokens\n")
+        
+        await message.answer(text=text, parse_mode='Markdown')
