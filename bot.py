@@ -27,11 +27,12 @@ async def main():
 
 
     await bot.delete_webhook(drop_pending_updates=True)
+
+    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     dp.update.middleware(ChatActionMiddleware())
     main_router.message.middleware(ChatActionMiddleware())
-    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
-    dp.message.middleware.register(ChatActionMiddleware())
-    main_router.message.middleware(ChatActionMiddleware())
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     asyncio.run(main())

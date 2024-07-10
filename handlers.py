@@ -19,7 +19,7 @@ from config import mongodb_cient
 from additional import split_message
 from user_class import User
 encoding = tiktoken.encoding_for_model("gpt-4o")
-from aiogram import flags
+
 
 main_router = Router()
 
@@ -172,6 +172,7 @@ async def handle_dalle_text(message: Message, state: FSMContext):
     balance = await user.get_token_balance()
     if balance > 0:
         #await bot.send_chat_action(action='upload_photo', chat_id = user_id)
+        print(f"Current token balance: {balance}")
         response = openai.images.generate(
             model="dall-e-3",
             prompt=message.text,
@@ -211,7 +212,6 @@ async def handle_text(message: Message, state: FSMContext):
 
     messages_before_reset = await user.get_msg_count()
 
-
     if user_data.get('thread_id') is None or messages_before_reset > 10:
         user_data['thread_id'] = None
         messages_before_reset = 0
@@ -222,7 +222,6 @@ async def handle_text(message: Message, state: FSMContext):
         user_data['thread_id'] = thread.id
 
     context_data[context_key] = user_data
-
     await state.set_data(context_data)
 
     await client.beta.threads.messages.create(
@@ -239,7 +238,7 @@ async def handle_text(message: Message, state: FSMContext):
     balance = await user.get_token_balance()
 
     if balance > 0:
-        #await bot.send_chat_action(action='typing', chat_id = user_id)
+       # await bot.send_chat_action(action='typing', chat_id = user_id)
         while True:
             run_response = await client.beta.threads.runs.retrieve(
                 thread_id=user_data['thread_id'],
