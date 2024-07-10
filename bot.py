@@ -21,16 +21,15 @@ async def main():
     dp.include_router(main_router)
 
 
-
-   # await on_startup()
-    print('Бот запущен и готов к приему сообщений')
-
-
-    await bot.delete_webhook(drop_pending_updates=True)
-
-    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+    # Подключение middleware перед start_polling
     dp.update.middleware(ChatActionMiddleware())
     main_router.message.middleware(ChatActionMiddleware())
+
+    print('Бот запущен и готов к приему сообщений')
+
+    await bot.delete_webhook(drop_pending_updates=True)
+    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+
 
 
 if __name__ == "__main__":
