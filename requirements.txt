@@ -24,3 +24,5 @@ APScheduler==3.10.4
 python-Levenshtein
 openai
 motor
+tiktoken
+icecream

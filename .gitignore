@@ -1,5 +1,6 @@
 config.py
-__pycache__/
+*__pycache__/*
 *.pyc
 
 pythonanywhere.py
+__pycache__/handlers.cpython-311.pyc
